@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "238afcfe-9dcf-4dca-a4e3-d72177d80432"
+				"spark.autotune.trackingId": "8d37ad51-0377-4e7f-9364-53f5bde61c04"
 			}
 		},
 		"metadata": {
@@ -60,7 +60,26 @@
 					"df = data.to_spark_dataframe()\r\n",
 					""
 				],
-				"execution_count": 6
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(df.limit(10))"
+				],
+				"execution_count": 8
 			},
 			{
 				"cell_type": "code",
@@ -76,9 +95,27 @@
 					}
 				},
 				"source": [
-					"display(df.limit(10))"
+					"filepath = 'abfss://edh@perthstdotcom.dfs.core.windows.net/workspace/allholidays.parquet'"
 				],
-				"execution_count": null
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.write.format(\"parquet\").save(filepath)"
+				],
+				"execution_count": 10
 			}
 		]
 	}
