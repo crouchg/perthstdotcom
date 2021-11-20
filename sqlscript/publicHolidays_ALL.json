@@ -1,0 +1,17 @@
+{
+	"name": "publicHolidays_ALL",
+	"properties": {
+		"content": {
+			"query": "USE perthstdotcom\nGO\n\nCREATE VIEW [dbo].[publicHolidays_ALL]\nAS\nSELECT\n     *\nFROM\n    OPENROWSET(\n        BULK 'https://perthstdotcom.dfs.core.windows.net/edh/workspace/allholidays.parquet/part-00000-d06a4212-81aa-4b57-b3b0-4a6245608cde-c000.snappy.parquet',\n        FORMAT = 'PARQUET'\n    ) AS [result]\nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "perthstdotcom",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
