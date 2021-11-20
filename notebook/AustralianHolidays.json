@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "4fa9a2b8-5843-4d9b-b0ab-28064eefea20"
+				"spark.autotune.trackingId": "238afcfe-9dcf-4dca-a4e3-d72177d80432"
 			}
 		},
 		"metadata": {
@@ -58,8 +58,6 @@
 					"\r\n",
 					"data = PublicHolidays()\r\n",
 					"df = data.to_spark_dataframe()\r\n",
-					"# Display 10 rows\r\n",
-					"\r\n",
 					""
 				],
 				"execution_count": 6
