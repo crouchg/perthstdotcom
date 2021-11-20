@@ -1,0 +1,17 @@
+{
+	"name": "AustraliaHolidays",
+	"properties": {
+		"content": {
+			"query": "SELECT [countryOrRegion]\n,[holidayName]\n,[normalizeHolidayName]\n,[isPaidTimeOff]\n,[countryRegionCode]\n,[date]\n FROM [dbo].[publicHolidays_ALL]\n WHERE [countryOrRegion] = 'Australia'",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "perthstdotcom",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
