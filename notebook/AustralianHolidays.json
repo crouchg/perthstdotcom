@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "82b28665-7868-42af-b8d3-7355cb64be77"
+				"spark.autotune.trackingId": "9b9dfd7b-4d4b-4693-b7fe-5e4be4bad1c6"
 			}
 		},
 		"metadata": {
@@ -135,7 +135,7 @@
 					"spark.sql('CREATE DATABASE IF NOT EXISTS perthstdotcom')\r\n",
 					""
 				],
-				"execution_count": 2
+				"execution_count": 3
 			},
 			{
 				"cell_type": "code",
