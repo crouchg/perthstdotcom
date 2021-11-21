@@ -1,5 +1,5 @@
 {
-	"name": "SQL script 2",
+	"name": "SelectFromSparkTable",
 	"properties": {
 		"content": {
 			"query": "\n\nSELECT TOP 10 *\nFROM [dbo].[publicHolidays_ALL]\n\n",
