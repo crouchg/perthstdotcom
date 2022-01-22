@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "a1b2a061-d028-4b82-889c-2abae1498998"
+				"spark.autotune.trackingId": "b3a425e9-83ae-421d-9043-52f202377419"
 			}
 		},
 		"metadata": {
@@ -100,30 +100,7 @@
 				"source": [
 					"print(li);"
 				],
-				"execution_count": 16
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"# FileSystem manager\r\n",
-					"fs = (sc._jvm.org\r\n",
-					"      .apache.hadoop\r\n",
-					"      .fs.FileSystem\r\n",
-					"      .get(sc._jsc.hadoopConfiguration())\r\n",
-					"      )"
-				],
-				"execution_count": null
+				"execution_count": 17
 			},
 			{
 				"cell_type": "code",
@@ -140,38 +117,15 @@
 				},
 				"source": [
 					"for x in li:\r\n",
-					"    thisPath = path + \r\n",
+					"    \r\n",
+					"    # Delete the file or directory in ADLS using the below command\r\n",
+					"    deletion_status = fs.delete(sc._jvm.org.apache.hadoop.fs.Path(x.path), True)\r\n",
+					"    print(\"Deletion status –>\", deletion_status)\r\n",
+					"\r\n",
+					"    # check whether the file or directory got deleted. This will return True if exists and False if does not\r\n",
+					"    status = fs.exists(sc._jvm.org.apache.hadoop.fs.Path(x.path))\r\n",
+					"    print(\"Status –>\", status)\r\n",
 					""
-				],
-				"execution_count": null
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					}
-				},
-				"source": [
-					"\r\n",
-					"\r\n",
-					"\r\n",
-					"# Enter the ADLS path\r\n",
-					"path = \"/carswap1642483432712.json\"\r\n",
-					"\r\n",
-					"# Delete the file or directory in ADLS using the below command\r\n",
-					"deletion_status = fs.delete(sc._jvm.org.apache.hadoop.fs.Path(path), True)\r\n",
-					"print(\"Deletion status –>\", deletion_status)\r\n",
-					"\r\n",
-					"# check whether the file or directory got deleted. This will return True if exists and False if does not\r\n",
-					"status = fs.exists(sc._jvm.org.apache.hadoop.fs.Path(path))\r\n",
-					"print(\"Status –>\", status)"
 				],
 				"execution_count": null
 			}
