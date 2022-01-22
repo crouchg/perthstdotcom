@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "ac739aa2-c84e-4a3a-87e9-717936f58a19"
+				"spark.autotune.trackingId": "0655d5ac-03fd-4976-9806-1027e7abce09"
 			}
 		},
 		"metadata": {
@@ -63,6 +63,28 @@
 					""
 				],
 				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"fs = (sc._jvm.org\r\n",
+					"      .apache.hadoop\r\n",
+					"      .fs.FileSystem\r\n",
+					"      .get(sc._jsc.hadoopConfiguration())\r\n",
+					"      )"
+				],
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -128,7 +150,7 @@
 					"        print(\"Status –>\", status)\r\n",
 					""
 				],
-				"execution_count": 20
+				"execution_count": 24
 			}
 		]
 	}
