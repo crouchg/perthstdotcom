@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b3a425e9-83ae-421d-9043-52f202377419"
+				"spark.autotune.trackingId": "ac739aa2-c84e-4a3a-87e9-717936f58a19"
 			}
 		},
 		"metadata": {
@@ -117,17 +117,18 @@
 				},
 				"source": [
 					"for x in li:\r\n",
-					"    \r\n",
-					"    # Delete the file or directory in ADLS using the below command\r\n",
-					"    deletion_status = fs.delete(sc._jvm.org.apache.hadoop.fs.Path(x.path), True)\r\n",
-					"    print(\"Deletion status –>\", deletion_status)\r\n",
+					"    if (x.name != 'carswap' and x.name != 'carswap_dev'):\r\n",
+					"        print(x.path)\r\n",
+					"        # Delete the file or directory in ADLS using the below command\r\n",
+					"        deletion_status = fs.delete(sc._jvm.org.apache.hadoop.fs.Path(x.path), True)\r\n",
+					"        print(\"Deletion status –>\", deletion_status)\r\n",
 					"\r\n",
-					"    # check whether the file or directory got deleted. This will return True if exists and False if does not\r\n",
-					"    status = fs.exists(sc._jvm.org.apache.hadoop.fs.Path(x.path))\r\n",
-					"    print(\"Status –>\", status)\r\n",
+					"        # check whether the file or directory got deleted. This will return True if exists and False if does not\r\n",
+					"        status = fs.exists(sc._jvm.org.apache.hadoop.fs.Path(x.path))\r\n",
+					"        print(\"Status –>\", status)\r\n",
 					""
 				],
-				"execution_count": null
+				"execution_count": 20
 			}
 		]
 	}
