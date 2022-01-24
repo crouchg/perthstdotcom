@@ -1,0 +1,25 @@
+{
+	"name": "carswap",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "main",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "jsonContent",
+				"type": "varchar"
+			},
+			{
+				"name": "name",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "carswapPackets"
+		}
+	}
+}
