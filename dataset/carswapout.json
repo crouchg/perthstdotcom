@@ -1,0 +1,20 @@
+{
+	"name": "carswapout",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "perthstdotcom-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "workspace/carswap/",
+				"fileSystem": "edh"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
