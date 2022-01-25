@@ -110,6 +110,9 @@
 				]
 			}
 		],
+		"folder": {
+			"name": "testing"
+		},
 		"annotations": []
 	}
 }
