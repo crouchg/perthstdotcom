@@ -17,7 +17,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "85c4e125-88e9-4b38-9cb3-67519bd2dc24"
+				"spark.autotune.trackingId": "ee6c2b36-1f1b-419a-8998-4c4023be2942"
 			}
 		},
 		"metadata": {
@@ -99,7 +99,31 @@
 					"spark.sql(\"CREATE DATABASE IF NOT EXISTS testSpark\")\r\n",
 					"spark.sql(\"CREATE TABLE IF NOT EXISTS testSpark.testSparkTable USING PARQUET LOCATION 'abfss://edh@perthstdotcom.dfs.core.windows.net/workspace/testSparkTable/'\")"
 				],
-				"execution_count": null
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"SELECT *\r\n",
+					"FROM testSpark.testSparkTable"
+				],
+				"execution_count": 9
 			}
 		]
 	}
