@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 4",
+	"properties": {
+		"content": {
+			"query": "USE [perthstdotcom]\nGO\n\n--CREATE EXTERNAL DATA SOURCE [workspace] WITH (LOCATION = N'https://perthstdotcom.dfs.core.windows.net/edh/workspace/')\n--GO\n\n--CREATE EXTERNAL FILE FORMAT [PARQUET] WITH (FORMAT_TYPE = PARQUET)\n--GO\n\nCREATE EXTERNAL TABLE [default].[dbo].[allholidays_CETAS]\n    WITH (\n        LOCATION = 'testCETASTable/',  \n        DATA_SOURCE = [workspace],\n        FILE_FORMAT = [PARQUET]\n)\nAS\n\nSELECT \n    TOP 100 holidayName\nFROM\n    OPENROWSET(\n        BULK 'https://perthstdotcom.dfs.core.windows.net/edh/workspace/testSparkTable/countryRegionCode=__HIVE_DEFAULT_PARTITION__/part-00000-4b5e994c-4d1c-40fe-8ab7-88d1a23da15a.c000.snappy.parquet',\n        FORMAT = 'PARQUET'\n    ) AS [result]\n\nGO",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "perthstdotcom",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
