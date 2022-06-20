@@ -1,5 +1,5 @@
 {
-	"name": "Dataset",
+	"name": "events",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "perthstdotcom-WorkspaceDefaultStorage",
