@@ -787,8 +787,14 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "carswap",
-						"type": "DatasetReference"
+						"referenceName": "Master",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "perthstdotcom",
+							"database": "master"
+						}
 					},
 					"firstRowOnly": false
 				}
