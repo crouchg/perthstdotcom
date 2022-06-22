@@ -787,14 +787,8 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "go1DataplatformMaster",
-						"type": "DatasetReference",
-						"parameters": {
-							"schema": "dbo",
-							"table": "getViewDefs",
-							"workspace": "go1dataplatform",
-							"database": "master"
-						}
+						"referenceName": "carswap",
+						"type": "DatasetReference"
 					},
 					"firstRowOnly": false
 				}
