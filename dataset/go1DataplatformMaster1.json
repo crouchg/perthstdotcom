@@ -1,0 +1,43 @@
+{
+	"name": "go1DataplatformMaster1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "main",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"schema": {
+				"type": "string",
+				"defaultValue": "dbo"
+			},
+			"table": {
+				"type": "string",
+				"defaultValue": "getViewDefs"
+			},
+			"workspace": {
+				"type": "string",
+				"defaultValue": "go1dataplatform"
+			},
+			"database": {
+				"type": "string",
+				"defaultValue": "master"
+			}
+		},
+		"folder": {
+			"name": "surface"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().schema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().table",
+				"type": "Expression"
+			}
+		}
+	}
+}

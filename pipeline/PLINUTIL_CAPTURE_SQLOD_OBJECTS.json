@@ -1,0 +1,1083 @@
+{
+	"name": "PLINUTIL_CAPTURE_SQLOD_OBJECTS",
+	"properties": {
+		"description": "Capture the SQL objects ( view, table-value function and stored procedure ) schema for all databases ( except master and spark hive databases ) as a snapshot, then produce two sets of SQL scripts, including deployment scripts in the dependencies order and the individual scripts for all the objects.",
+		"activities": [
+			{
+				"name": "Take snapshot of SQL objects",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Set lookup_query",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set copy_query",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set crossdb_query",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set sql_query",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set folder_name",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"additionalColumns": [
+							{
+								"name": "zTimestamp",
+								"value": {
+									"value": "@variables('run_timestamp')",
+									"type": "Expression"
+								}
+							}
+						],
+						"sqlReaderQuery": {
+							"value": "@variables('sql_query')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "go1DataplatformMaster",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "go1dataplatform",
+							"database": "master"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "go1datalakegen2_parquet_writer",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder": {
+								"value": "workspace/db_scripts/@{variables('workspace')}/snapshots",
+								"type": "Expression"
+							},
+							"container": "edh",
+							"filename": {
+								"value": "@{variables('workspace')}.@{variables('run_timestamp')}.parquet",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Lookup DBNames",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Take snapshot of SQL objects",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@variables('lookup_query')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "go1DataplatformMaster",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "go1dataplatform",
+							"database": "surface"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach DB produce deployment scripts",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup DBNames",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup DBNames').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy scripts relationship with DB",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@replace(replace(variables('copy_query'),'@DB_NAME',item().DBName),'@CROSSDB_VALUE','0')",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "go1DataplatformMaster",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"table": "getViewDefs",
+										"workspace": "go1dataplatform",
+										"database": "surface"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "PLINJIRA_DelimitedText",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@concat(variables('folder_name'),item().DBName)",
+											"type": "Expression"
+										},
+										"file_name": {
+											"value": "@concat('3_',item().DBName,'_createviews.sql')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Copy scripts data sources",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@replace(variables('datasource_query'),'@DBNAME',item().DBName)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "go1DataplatformMaster",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"table": "getViewDefs",
+										"workspace": "go1dataplatform",
+										"database": {
+											"value": "@item().DBName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "PLINJIRA_DelimitedText",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@concat(variables('folder_name'),item().DBName)",
+											"type": "Expression"
+										},
+										"file_name": {
+											"value": "@concat('1_',item().DBName,'_createdatasources.sql')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Copy scripts schemas",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@replace(variables('schema_query'),'@DBNAME',item().DBName)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "go1DataplatformMaster",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"table": "getViewDefs",
+										"workspace": "go1dataplatform",
+										"database": {
+											"value": "@item().DBName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "PLINJIRA_DelimitedText",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@concat(variables('folder_name'),item().DBName)",
+											"type": "Expression"
+										},
+										"file_name": {
+											"value": "@concat('2_',item().DBName,'_createschemas.sql')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Copy script relationship cross DB",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "ForEach DB produce deployment scripts",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "@replace(variables('crossdb_query'),'@CROSSDB_VALUE','1')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "go1DataplatformMaster",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "go1dataplatform",
+							"database": "surface"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "PLINJIRA_DelimitedText",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": {
+								"value": "@concat(variables('folder_name'),'/CrossDBDependent')",
+								"type": "Expression"
+							},
+							"file_name": {
+								"value": "@concat('4_crossdb_createviews.sql')",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "ForEach object produce plain SQL",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup objects",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup objects').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy individual script file",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT replace(ObjectDefinition, '?', ' ') ObjectDefinition\nFROM OPENROWSET(BULK '/db_scripts/@{variables('workspace')}/snapshots/*.parquet', DATA_SOURCE = 'workspace', FORMAT = 'PARQUET') WITH (\n\t\tObjectID INT\n\t\t,DBName VARCHAR(25)\n\t\t,ObjectDefinition VARCHAR(max)\n\t\t,CrossDBDependent TINYINT\n\t\t,HierarchyLevel TINYINT\n        ,zTimestamp VARCHAR(255)\n\t\t) AS result\nWHERE CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2) \n\tAND ObjectID = @{item().ObjectID}",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "go1DataplatformMaster",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"table": "getViewDefs",
+										"workspace": "go1dataplatform",
+										"database": "surface"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "PLINJIRA_DelimitedText",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@{variables('folder_name')}@{item().DBName}/@{item().SchemaName}",
+											"type": "Expression"
+										},
+										"file_name": {
+											"value": "@{item().ObjectName}.sql",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Lookup objects",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Take snapshot of SQL objects",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT *\nFROM [surface].[dbo].[sqlod_snapshots]\nWHERE [zWorkspace] = '@{variables('workspace')}'\n\tAND CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2)\nORDER BY DBName\n\t,SchemaName\n\t,ObjectName\n",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "go1DataplatformMaster",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "go1dataplatform",
+							"database": "surface"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Set zTimestamp",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set workspace",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "run_timestamp",
+					"value": {
+						"value": "@utcnow()",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set lookup_query",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set zTimestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "lookup_query",
+					"value": {
+						"value": "SELECT DISTINCT DBName\nFROM [surface].[dbo].[sqlod_snapshots]\nWHERE [zWorkspace] = '@{variables('workspace')}'\n\tAND CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2)\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set copy_query",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set zTimestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "copy_query",
+					"value": {
+						"value": "SELECT replace(ObjectDefinition, '?', ' ') ObjectDefinition\nFROM OPENROWSET(BULK '/db_scripts/@{variables('workspace')}/snapshots/*.parquet', DATA_SOURCE = 'workspace', FORMAT = 'PARQUET') WITH (\n\t\tObjectID INT\n\t\t,DBName VARCHAR(25)\n\t\t,ObjectDefinition VARCHAR(max)\n\t\t,CrossDBDependent TINYINT\n\t\t,HierarchyLevel TINYINT\n\t\t,zTimestamp VARCHAR(255)\n\t\t) AS result\nWHERE CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2)\n    AND DBName = '@DB_NAME'\n\tAND CrossDBDependent = @CROSSDB_VALUE\nORDER BY HierarchyLevel",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set crossdb_query",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set zTimestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "crossdb_query",
+					"value": {
+						"value": "SELECT replace(ObjectDefinition, '?', ' ') ObjectDefinition\nFROM OPENROWSET(BULK '/db_scripts/@{variables('workspace')}/snapshots/*.parquet', DATA_SOURCE = 'workspace', FORMAT = 'PARQUET') WITH (\n\t\tObjectID INT\n\t\t,DBName VARCHAR(25)\n\t\t,ObjectDefinition VARCHAR(max)\n\t\t,CrossDBDependent TINYINT\n\t\t,HierarchyLevel TINYINT\n\t\t,zTimestamp VARCHAR(255)\n\t\t) AS result\nWHERE CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2)\n    AND CrossDBDependent = @CROSSDB_VALUE\nORDER BY HierarchyLevel",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set sql_query",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Build sql_objects_query array",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Build sql_dependency_query array",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "sql_query",
+					"value": {
+						"value": "DECLARE @COUNTER INT = 1\n\t,@MAX_RECURSION INT = 10\n\nCREATE TABLE #tmpRunOrder (\n\tObjectID INT\n\t,DBName VARCHAR(25)\n\t,SchemaName VARCHAR(255)\n\t,ObjectName VARCHAR(255)\n\t,ObjectDefinition VARCHAR(MAX)\n\t,CrossDBDependent TINYINT\n\t,HierarchyLevel INT\n\t)\n\nCREATE TABLE #dependency (\n\tObjectID INT\n\t,DBName VARCHAR(25)\n\t,SchemaName VARCHAR(255)\n\t,ObjectName VARCHAR(255)\n\t,ObjectDefinition VARCHAR(MAX)\n\t,ReferredObjectID INT\n\t,ReferredDBName VARCHAR(25)\n\t);\n\nWITH sql_objects\nAS (\n\t@{join(variables('sql_objects_query'), '    UNION    ')}\n\t)\n\t,sql_dependency\nAS (\n    @{join(variables('sql_dependency_query'), '    UNION    ')}\n\t)\nINSERT INTO #dependency\nSELECT DISTINCT sql_objects.ObjectID\n\t,sql_objects.DBName\n\t,sql_objects.SchemaName\n\t,sql_objects.ObjectName\n\t,sql_objects.ObjectDefinition\n\t,COALESCE(refferedobject_singledependency.ObjectID, crossDBdependency.ObjectID) ReferredObjectID\n\t,COALESCE(refferedobject_singledependency.DBName, crossDBdependency.DBName) ReferredDBName\nFROM sql_objects sql_objects\nLEFT OUTER JOIN sql_dependency ON sql_objects.ObjectID = sql_dependency.referencing_id\nLEFT OUTER JOIN sql_objects refferedobject_singledependency ON sql_dependency.referenced_id = refferedobject_singledependency.ObjectID\n\tAND sql_objects.DBName COLLATE Latin1_General_100_BIN2_UTF8 = refferedobject_singledependency.DBName\nLEFT OUTER JOIN sql_objects crossDBdependency ON sql_dependency.referenced_schema_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.SchemaName\n\tAND sql_dependency.referenced_database_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.DBName\n\tAND sql_dependency.referenced_entity_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.ObjectName\n\nINSERT INTO #tmpRunOrder\nSELECT DISTINCT ObjectID\n\t,DBName\n\t,SchemaName\n\t,ObjectName\n\t,'USE [' + DBName + ']' + CHAR(10) + 'GO' + CHAR(10) + STUFF(ObjectDefinition, CHARINDEX('CREATE', UPPER(ObjectDefinition)), LEN('CREATE'), 'CREATE OR ALTER') + CHAR(10) + 'GO' ObjectDefinition\n\t,0 CrossDBDependent\n\t,1 HierarchyLevel\nFROM #dependency\nWHERE referredObjectID IS NULL\n\tAND DBName + '_' + CONVERT(VARCHAR(64), ObjectID) NOT IN (\n\t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID\n\t\tFROM #dependency\n\t\tWHERE referredObjectID IS NOT NULL\n\t\t)\n\nWHILE @COUNTER <= @MAX_RECURSION\nBEGIN\n\tINSERT INTO #tmpRunOrder\n\tSELECT ObjectID\n\t\t,DBName\n\t\t,SchemaName\n\t\t,ObjectName\n\t\t,'USE [' + DBName + ']' + CHAR(10) + 'GO' + CHAR(10) + STUFF(ObjectDefinition, CHARINDEX('CREATE', UPPER(ObjectDefinition)), LEN('CREATE'), 'CREATE OR ALTER') + CHAR(10) + 'GO' ObjectDefinition\n\t\t,CrossDBDependent\n\t\t,HierarchyLevel\n\tFROM (\n\t\tSELECT DISTINCT ObjectID\n\t\t\t,DBName\n\t\t\t,SchemaName\n\t\t\t,ObjectName\n\t\t\t,REPLACE(ObjectDefinition, '?', '') ObjectDefinition\n\t\t\t,CrossDBDependent\n\t\t\t,@COUNTER + 1 HierarchyLevel\n\t\t\t,ROW_NUMBER() OVER (\n\t\t\t\tPARTITION BY ObjectID\n\t\t\t\t,DBName ORDER BY CrossDBDependent DESC\n\t\t\t\t) RowRank\n\t\tFROM (\n\t\t\tSELECT d.ObjectID\n\t\t\t\t,d.DBName\n\t\t\t\t,d.SchemaName\n\t\t\t\t,d.ObjectName\n\t\t\t\t,d.ObjectDefinition\n\t\t\t\t,MAX(CASE WHEN d.DBName <> d.ReferredDBName\n\t\t\t\t\t\t\tOR f.CrossDBDependent = 1 THEN 1 ELSE 0 END) CrossDBDependent\n\t\t\tFROM #dependency d\n\t\t\tINNER JOIN #tmpRunOrder f ON d.ReferredObjectID = f.ObjectID\n\t\t\t\tAND d.ReferredDBName = f.DBName\n\t\t\t\tAND d.DBName + '_' + CONVERT(VARCHAR(64), d.ObjectID) NOT IN (\n\t\t\t\t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID\n\t\t\t\t\tFROM #tmpRunOrder\n\t\t\t\t\t)\n\t\t\tGROUP BY d.ObjectID\n\t\t\t\t,d.DBName\n\t\t\t\t,d.SchemaName\n\t\t\t\t,d.ObjectName\n\t\t\t\t,d.ObjectDefinition\n\t\t\t\n\t\t\tEXCEPT\n\t\t\t\n\t\t\tSELECT d.ObjectID\n\t\t\t\t,d.DBName\n\t\t\t\t,d.SchemaName\n\t\t\t\t,d.ObjectName\n\t\t\t\t,d.ObjectDefinition\n\t\t\t\t,Dependency CrossDBDependent\n\t\t\tFROM #dependency d\n\t\t\tINNER JOIN (\n\t\t\t\tSELECT b.ObjectID\n\t\t\t\t\t,b.DBName\n\t\t\t\t\t,MAX(CASE WHEN b.DBName <> b.ReferredDBName THEN 1 ELSE 0 END) Dependency\n\t\t\t\tFROM #dependency b\n\t\t\t\tGROUP BY ObjectID\n\t\t\t\t\t,DBName\n\t\t\t\t) AS innerdependency ON d.ObjectID = innerdependency.ObjectID\n\t\t\t\tAND d.DBName = innerdependency.DBName\n\t\t\tWHERE d.ReferredDBName + '_' + CONVERT(VARCHAR(64), d.ReferredObjectID) NOT IN (\n\t\t\t\t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID\n\t\t\t\t\tFROM #tmpRunOrder\n\t\t\t\t\t)\n\t\t\t) AS TEMPORARY\n\t\t) AS working_dependency\n\tWHERE RowRank = 1\n\n\tSET @COUNTER = @COUNTER + 1\nEND\n\nSELECT *\nFROM #tmpRunOrder\nORDER BY ObjectID\n\nDROP TABLE #dependency\n\nDROP TABLE #tmpRunOrder\n",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set folder_name",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Set zTimestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "folder_name",
+					"value": {
+						"value": "workspace/db_scripts/@{variables('workspace')}/sql/@{variables('run_timestamp')}/",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set workspace",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "workspace",
+					"value": {
+						"value": "@pipeline().DataFactory",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Lookup databases",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set zTimestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": {
+							"value": "SELECT [name]\nFROM sys.databases\nWHERE [is_query_store_on] = 0\n    AND [name] != 'master'",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "go1DataplatformMaster",
+						"type": "DatasetReference",
+						"parameters": {
+							"schema": "dbo",
+							"table": "getViewDefs",
+							"workspace": "go1dataplatform",
+							"database": "master"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Build sql_objects_query array",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup databases",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup databases').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Append sql_objects_query",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sql_objects_query",
+								"value": {
+									"value": "SELECT sql_objects.object_id ObjectID\n\t,'@{item().name}' COLLATE Latin1_General_100_BIN2_UTF8 DBName\n\t,sql_schemas.name COLLATE Latin1_General_100_BIN2_UTF8 SchemaName\n\t,sql_objects.name COLLATE Latin1_General_100_BIN2_UTF8 ObjectName\n\t,sql_modules.DEFINITION COLLATE Latin1_General_100_BIN2_UTF8 ObjectDefinition\nFROM [@{item().name}].sys.objects sql_objects\nINNER JOIN [@{item().name}].sys.schemas sql_schemas ON sql_objects.schema_id = sql_schemas.schema_id\nINNER JOIN [@{item().name}].sys.sql_modules ON sql_objects.object_id = sql_modules.object_id\nWHERE sql_objects.type_desc IN (\n\t\t'VIEW'\n\t\t,'SQL_INLINE_TABLE_VALUED_FUNCTION'\n\t\t,'SQL_STORED_PROCEDURE'\n\t\t)",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Build sql_dependency_query array",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup databases",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup databases').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Append sql_dependency_query",
+							"type": "AppendVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "sql_dependency_query",
+								"value": {
+									"value": "SELECT referencing_id\n\t,'@{item().name}' COLLATE Latin1_General_100_BIN2_UTF8 DBName\n\t,referenced_id\n\t,referenced_database_name COLLATE Latin1_General_100_BIN2_UTF8 referenced_database_name\n\t,referenced_schema_name COLLATE Latin1_General_100_BIN2_UTF8 referenced_schema_name\n\t,referenced_entity_name COLLATE Latin1_General_100_BIN2_UTF8 referenced_entity_name\nFROM [@{item().name}].sys.sql_expression_dependencies\nWHERE referenced_id IS NOT NULL\n\tOR (\n\t\treferenced_database_name IS NOT NULL\n\t\tAND referenced_entity_name IS NOT NULL\n\t\t)",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "ForEach object produce json",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup objects",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup objects').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy individual script file as Synapse JSON",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "SELECT CONCAT(DBName, '_', SchemaName, '_', ObjectName) AS [name]\n\t,CONCAT('SQLOD', '/', DBName, '/', SchemaName) AS [folder]\n\t,replace(ObjectDefinition, '?', ' ') AS [content]\n\t,'sql' AS [language]\n\t,DBName AS [databaseName]\n\t,'Built-in' AS [poolName]\n\t,5000 AS [resultLimit]\n\t,'SqlQuery' AS [type]\nFROM [surface].[dbo].[sqlod_snapshots]\nWHERE CAST(zTimestamp AS DATETIME2) = CAST('@{variables('run_timestamp')}' AS DATETIME2) \n\tAND ObjectID = @{item().ObjectID}",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "JsonSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "JsonWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "name",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['name']"
+											}
+										},
+										{
+											"source": {
+												"name": "folder",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['folder']['name']"
+											}
+										},
+										{
+											"source": {
+												"name": "content",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['content']['query']"
+											}
+										},
+										{
+											"source": {
+												"name": "language",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['content']['metadata']['language']"
+											}
+										},
+										{
+											"source": {
+												"name": "databaseName",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['content']['currentConnection']['databaseName']"
+											}
+										},
+										{
+											"source": {
+												"name": "poolName",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['content']['currentConnection']['poolName']"
+											}
+										},
+										{
+											"source": {
+												"name": "resultLimit",
+												"type": "Int32"
+											},
+											"sink": {
+												"path": "$['properties']['content']['resultLimit']"
+											}
+										},
+										{
+											"source": {
+												"name": "type",
+												"type": "String"
+											},
+											"sink": {
+												"path": "$['properties']['type']"
+											}
+										}
+									]
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "go1DataplatformMaster",
+									"type": "DatasetReference",
+									"parameters": {
+										"schema": "dbo",
+										"table": "getViewDefs",
+										"workspace": "go1dataplatform",
+										"database": "surface"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "go1datalakegen2_json_writer",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "edh",
+										"folder": {
+											"value": "@{variables('folder_name')}sqlscript/",
+											"type": "Expression"
+										},
+										"filename": {
+											"value": "@{item().DBName}_@{item().SchemaName}_@{item().ObjectName}.json",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"lookup_query": {
+				"type": "String",
+				"defaultValue": "SELECT DISTINCT DBName FROM OPENROWSET(BULK '/db_scripts/*.parquet',                 DATA_SOURCE='workspace',                 FORMAT = 'PARQUET') AS result"
+			},
+			"copy_query": {
+				"type": "String",
+				"defaultValue": "SELECT  replace(ObjectDefinition,'?',' ') ObjectDefinition FROM OPENROWSET(BULK '/db_scripts/*.parquet',                 DATA_SOURCE='workspace',                 FORMAT = 'PARQUET')  WITH ( \tObjectID INT, \tDBName varchar(25), \tObjectDefinition varchar(max), \tCrossDBDependent tinyint, \tHierarchyLevel tinyint ) AS result WHERE DBName = '@DB_NAME' AND CrossDBDependent = @CROSSDB_VALUE ORDER BY HierarchyLevel"
+			},
+			"folder_name": {
+				"type": "String",
+				"defaultValue": "workspace/db_deployment_scripts/"
+			},
+			"datasource_query": {
+				"type": "String",
+				"defaultValue": "SELECT 'USE [@DBNAME]' + CHAR(10) +'GO' + CHAR(10)  + 'CREATE EXTERNAL DATA SOURCE [' + name + '] WITH (LOCATION = N''' + location + ''')' + CHAR(10) + 'GO' from sys.external_data_sources"
+			},
+			"schema_query": {
+				"type": "String",
+				"defaultValue": "SELECT  \t'USE [@DBNAME]' + CHAR(10) +'GO' + CHAR(10)  + 'CREATE SCHEMA [' + name + ']' + CHAR(10) + 'GO'  FROM sys.schemas WHERE principal_id = 1 AND [name] <> 'dbo'"
+			},
+			"crossdb_query": {
+				"type": "String",
+				"defaultValue": "SELECT  replace(ObjectDefinition,'?',' ') ObjectDefinition FROM OPENROWSET(BULK '/db_scripts/*.parquet',                 DATA_SOURCE='workspace',                 FORMAT = 'PARQUET')  WITH ( \tObjectID INT, \tDBName varchar(25), \tObjectDefinition varchar(max), \tCrossDBDependent tinyint, \tHierarchyLevel tinyint ) AS result WHERE CrossDBDependent = @CROSSDB_VALUE ORDER BY HierarchyLevel"
+			},
+			"run_timestamp": {
+				"type": "String"
+			},
+			"sql_query": {
+				"type": "String",
+				"defaultValue": "DECLARE @COUNTER INT = 1 \t,@MAX_RECURSION INT = 10  CREATE TABLE #tmpRunOrder ( \tObjectID INT \t,DBName VARCHAR(25) \t,SchemaName VARCHAR(255) \t,ObjectName VARCHAR(255) \t,ObjectDefinition VARCHAR(MAX) \t,CrossDBDependent TINYINT \t,HierarchyLevel INT \t)  CREATE TABLE #dependency ( \tObjectID INT \t,DBName VARCHAR(25) \t,SchemaName VARCHAR(255) \t,ObjectName VARCHAR(255) \t,ObjectDefinition VARCHAR(MAX) \t,ReferredObjectID INT \t,ReferredDBName VARCHAR(25) \t);  WITH sql_objects AS ( \tSELECT sql_objects.object_id ObjectID \t\t,'surface' DBName \t\t,sql_schemas.name SchemaName \t\t,sql_objects.name ObjectName \t\t,sql_modules.DEFINITION ObjectDefinition \tFROM surface.sys.objects sql_objects \tINNER JOIN surface.sys.schemas sql_schemas ON sql_objects.schema_id = sql_schemas.schema_id \tINNER JOIN surface.sys.sql_modules ON sql_objects.object_id = sql_modules.object_id \tWHERE sql_objects.type_desc IN ( \t\t\t'VIEW' \t\t\t,'SQL_INLINE_TABLE_VALUED_FUNCTION' \t\t\t,'SQL_STORED_PROCEDURE' \t\t\t) \t \tUNION \t\t \t\t​ \tSELECT sql_objects_source.object_id ObjectID \t\t,'source' DBName \t\t,sql_schemas.name SchemaName \t\t,sql_objects_source.name ObjectName \t\t,sql_modules.DEFINITION ObjectDefinition \tFROM source.sys.objects sql_objects_source \tINNER JOIN source.sys.schemas sql_schemas ON sql_objects_source.schema_id = sql_schemas.schema_id \tINNER JOIN source.sys.sql_modules ON sql_objects_source.object_id = sql_modules.object_id \tWHERE sql_objects_source.type_desc IN ( \t\t\t'VIEW' \t\t\t,'SQL_INLINE_TABLE_VALUED_FUNCTION' \t\t\t,'SQL_STORED_PROCEDURE' \t\t\t) \t \tUNION \t\t \t\t​ \tSELECT sql_objects_source.object_id ObjectID \t\t,'mdm' DBName \t\t,sql_schemas.name COLLATE Latin1_General_100_BIN2_UTF8 SchemaName \t\t,sql_objects_source.name COLLATE Latin1_General_100_BIN2_UTF8 ObjectName \t\t,sql_modules.DEFINITION COLLATE Latin1_General_100_BIN2_UTF8 ObjectDefinition \tFROM mdm.sys.objects sql_objects_source \tINNER JOIN mdm.sys.schemas sql_schemas ON sql_objects_source.schema_id = sql_schemas.schema_id \tINNER JOIN mdm.sys.sql_modules ON sql_objects_source.object_id = sql_modules.object_id \tWHERE sql_objects_source.type_desc IN ( \t\t\t'VIEW' \t\t\t,'SQL_INLINE_TABLE_VALUED_FUNCTION' \t\t\t,'SQL_STORED_PROCEDURE' \t\t\t) \t \tUNION \t\t \t\t​ \tSELECT sql_objects_source.object_id ObjectID \t\t,'landing' DBName \t\t,sql_schemas.name SchemaName \t\t,sql_objects_source.name ObjectName \t\t,sql_modules.DEFINITION ObjectDefinition \tFROM landing.sys.objects sql_objects_source \tINNER JOIN landing.sys.schemas sql_schemas ON sql_objects_source.schema_id = sql_schemas.schema_id \tINNER JOIN landing.sys.sql_modules ON sql_objects_source.object_id = sql_modules.object_id \tWHERE sql_objects_source.type_desc IN ( \t\t\t'VIEW' \t\t\t,'SQL_INLINE_TABLE_VALUED_FUNCTION' \t\t\t,'SQL_STORED_PROCEDURE' \t\t\t) \t) \t,sql_dependency AS ( \tSELECT referencing_id \t\t,'surface' DBName \t\t,referenced_id \t\t,referenced_database_name \t\t,referenced_schema_name \t\t,referenced_entity_name \tFROM surface.sys.sql_expression_dependencies \tWHERE referenced_id IS NOT NULL \t\tOR ( \t\t\treferenced_database_name IS NOT NULL \t\t\tAND referenced_entity_name IS NOT NULL \t\t\t) \t \tUNION \t \tSELECT referencing_id \t\t,'source' DBName \t\t,referenced_id \t\t,referenced_database_name \t\t,referenced_schema_name \t\t,referenced_entity_name \tFROM source.sys.sql_expression_dependencies \tWHERE referenced_id IS NOT NULL \t\tOR ( \t\t\treferenced_database_name IS NOT NULL \t\t\tAND referenced_entity_name IS NOT NULL \t\t\t) \t \tUNION \t \tSELECT referencing_id \t\t,'mdm' DBName \t\t,referenced_id \t\t,referenced_database_name \t\t,referenced_schema_name \t\t,referenced_entity_name \tFROM mdm.sys.sql_expression_dependencies \tWHERE referenced_id IS NOT NULL \t\tOR ( \t\t\treferenced_database_name IS NOT NULL \t\t\tAND referenced_entity_name IS NOT NULL \t\t\t) \t \tUNION \t \tSELECT referencing_id \t\t,'landing' DBName \t\t,referenced_id \t\t,referenced_database_name \t\t,referenced_schema_name \t\t,referenced_entity_name \tFROM landing.sys.sql_expression_dependencies \tWHERE referenced_id IS NOT NULL \t\tOR ( \t\t\treferenced_database_name IS NOT NULL \t\t\tAND referenced_entity_name IS NOT NULL \t\t\t) \t) INSERT INTO #dependency SELECT DISTINCT sql_objects.ObjectID \t,sql_objects.DBName \t,sql_objects.SchemaName \t,sql_objects.ObjectName \t,sql_objects.ObjectDefinition \t,COALESCE(refferedobject_singledependency.ObjectID, crossDBdependency.ObjectID) ReferredObjectID \t,COALESCE(refferedobject_singledependency.DBName, crossDBdependency.DBName) ReferredDBName FROM sql_objects sql_objects LEFT OUTER JOIN sql_dependency ON sql_objects.ObjectID = sql_dependency.referencing_id LEFT OUTER JOIN sql_objects refferedobject_singledependency ON sql_dependency.referenced_id = refferedobject_singledependency.ObjectID \tAND sql_objects.DBName = refferedobject_singledependency.DBName LEFT OUTER JOIN sql_objects crossDBdependency ON sql_dependency.referenced_schema_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.SchemaName \tAND sql_dependency.referenced_database_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.DBName \tAND sql_dependency.referenced_entity_name COLLATE Latin1_General_100_BIN2_UTF8 = crossDBdependency.ObjectName  INSERT INTO #tmpRunOrder SELECT DISTINCT ObjectID \t,DBName \t,SchemaName \t,ObjectName \t,'USE [' + DBName + ']' + CHAR(10) + 'GO' + CHAR(10) + STUFF(ObjectDefinition, CHARINDEX('CREATE', UPPER(ObjectDefinition)), LEN('CREATE'), 'CREATE OR ALTER') + CHAR(10) + 'GO' ObjectDefinition \t,0 CrossDBDependent \t,1 HierarchyLevel FROM #dependency WHERE referredObjectID IS NULL \tAND DBName + '_' + CONVERT(VARCHAR(64), ObjectID) NOT IN ( \t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID \t\tFROM #dependency \t\tWHERE referredObjectID IS NOT NULL \t\t)  WHILE @COUNTER <= @MAX_RECURSION BEGIN \tINSERT INTO #tmpRunOrder \tSELECT ObjectID \t\t,DBName \t\t,SchemaName \t\t,ObjectName \t\t,'USE [' + DBName + ']' + CHAR(10) + 'GO' + CHAR(10) + STUFF(ObjectDefinition, CHARINDEX('CREATE', UPPER(ObjectDefinition)), LEN('CREATE'), 'CREATE OR ALTER') + CHAR(10) + 'GO' ObjectDefinition \t\t,CrossDBDependent \t\t,HierarchyLevel \tFROM ( \t\tSELECT DISTINCT ObjectID \t\t\t,DBName \t\t\t,SchemaName \t\t\t,ObjectName \t\t\t,REPLACE(ObjectDefinition, '?', '') ObjectDefinition \t\t\t,CrossDBDependent \t\t\t,@COUNTER + 1 HierarchyLevel \t\t\t,ROW_NUMBER() OVER ( \t\t\t\tPARTITION BY ObjectID \t\t\t\t,DBName ORDER BY CrossDBDependent DESC \t\t\t\t) RowRank \t\tFROM ( \t\t\tSELECT d.ObjectID \t\t\t\t,d.DBName \t\t\t\t,d.SchemaName \t\t\t\t,d.ObjectName \t\t\t\t,d.ObjectDefinition \t\t\t\t,MAX(CASE WHEN d.DBName <> d.ReferredDBName \t\t\t\t\t\t\tOR f.CrossDBDependent = 1 THEN 1 ELSE 0 END) CrossDBDependent \t\t\tFROM #dependency d \t\t\tINNER JOIN #tmpRunOrder f ON d.ReferredObjectID = f.ObjectID \t\t\t\tAND d.ReferredDBName = f.DBName \t\t\t\tAND d.DBName + '_' + CONVERT(VARCHAR(64), d.ObjectID) NOT IN ( \t\t\t\t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID \t\t\t\t\tFROM #tmpRunOrder \t\t\t\t\t) \t\t\tGROUP BY d.ObjectID \t\t\t\t,d.DBName \t\t\t\t,d.SchemaName \t\t\t\t,d.ObjectName \t\t\t\t,d.ObjectDefinition \t\t\t \t\t\tEXCEPT \t\t\t \t\t\tSELECT d.ObjectID \t\t\t\t,d.DBName \t\t\t\t,d.SchemaName \t\t\t\t,d.ObjectName \t\t\t\t,d.ObjectDefinition \t\t\t\t,Dependency CrossDBDependent \t\t\tFROM #dependency d \t\t\tINNER JOIN ( \t\t\t\tSELECT b.ObjectID \t\t\t\t\t,b.DBName \t\t\t\t\t,MAX(CASE WHEN b.DBName <> b.ReferredDBName THEN 1 ELSE 0 END) Dependency \t\t\t\tFROM #dependency b \t\t\t\tGROUP BY ObjectID \t\t\t\t\t,DBName \t\t\t\t) AS innerdependency ON d.ObjectID = innerdependency.ObjectID \t\t\t\tAND d.DBName = innerdependency.DBName \t\t\tWHERE d.ReferredDBName + '_' + CONVERT(VARCHAR(64), d.ReferredObjectID) NOT IN ( \t\t\t\t\tSELECT DBName + '_' + CONVERT(VARCHAR(64), ObjectID) ObjectID \t\t\t\t\tFROM #tmpRunOrder \t\t\t\t\t) \t\t\t) AS TEMPORARY \t\t) AS working_dependency \tWHERE RowRank = 1  \tSET @COUNTER = @COUNTER + 1 END  SELECT * FROM #tmpRunOrder ORDER BY ObjectID  DROP TABLE #dependency  DROP TABLE #tmpRunOrder"
+			},
+			"workspace": {
+				"type": "String"
+			},
+			"sql_objects_query": {
+				"type": "Array",
+				"defaultValue": []
+			},
+			"sql_dependency_query": {
+				"type": "Array",
+				"defaultValue": []
+			}
+		},
+		"folder": {
+			"name": "Pipelines/Utils"
+		},
+		"annotations": []
+	}
+}
