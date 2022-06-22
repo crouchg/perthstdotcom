@@ -1,5 +1,5 @@
 {
-	"name": "PLINUTIL_CAPTURE_SQLOD_OBJECTS",
+	"name": "PLIN_UTIL_CAPTURE_SQLS_OBJECTS",
 	"properties": {
 		"description": "Capture the SQL objects ( view, table-value function and stored procedure ) schema for all databases ( except master and spark hive databases ) as a snapshot, then produce two sets of SQL scripts, including deployment scripts in the dependencies order and the individual scripts for all the objects.",
 		"activities": [
