@@ -1,5 +1,5 @@
 {
-	"name": "go1datalakegen2_parquet_writer",
+	"name": "parquet_writer",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "perthstdotcom-WorkspaceDefaultStorage",

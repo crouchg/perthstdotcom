@@ -86,7 +86,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "go1DataplatformMaster",
+						"referenceName": "Master",
 						"type": "DatasetReference",
 						"parameters": {
 							"schema": "dbo",
@@ -98,7 +98,7 @@
 				],
 				"outputs": [
 					{
-						"referenceName": "go1datalakegen2_parquet_writer",
+						"referenceName": "parquet_writer",
 						"type": "DatasetReference",
 						"parameters": {
 							"folder": {
@@ -144,7 +144,7 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "go1DataplatformMaster",
+						"referenceName": "Master",
 						"type": "DatasetReference",
 						"parameters": {
 							"schema": "dbo",
@@ -220,7 +220,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "go1DataplatformMaster",
+									"referenceName": "Master",
 									"type": "DatasetReference",
 									"parameters": {
 										"schema": "dbo",
@@ -293,7 +293,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "go1DataplatformMaster",
+									"referenceName": "Master",
 									"type": "DatasetReference",
 									"parameters": {
 										"schema": "dbo",
@@ -369,7 +369,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "go1DataplatformMaster",
+									"referenceName": "Master",
 									"type": "DatasetReference",
 									"parameters": {
 										"schema": "dbo",
@@ -455,7 +455,7 @@
 				},
 				"inputs": [
 					{
-						"referenceName": "go1DataplatformMaster",
+						"referenceName": "Master",
 						"type": "DatasetReference",
 						"parameters": {
 							"schema": "dbo",
@@ -546,7 +546,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "go1DataplatformMaster",
+									"referenceName": "Master",
 									"type": "DatasetReference",
 									"parameters": {
 										"schema": "dbo",
@@ -606,7 +606,7 @@
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "go1DataplatformMaster",
+						"referenceName": "Master",
 						"type": "DatasetReference",
 						"parameters": {
 							"schema": "dbo",
@@ -993,7 +993,7 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "go1DataplatformMaster",
+									"referenceName": "Master",
 									"type": "DatasetReference",
 									"parameters": {
 										"schema": "dbo",
@@ -1005,7 +1005,7 @@
 							],
 							"outputs": [
 								{
-									"referenceName": "go1datalakegen2_json_writer",
+									"referenceName": "json_writer",
 									"type": "DatasetReference",
 									"parameters": {
 										"container": "edh",

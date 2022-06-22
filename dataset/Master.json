@@ -1,5 +1,5 @@
 {
-	"name": "go1DataplatformMaster",
+	"name": "Master",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "main",
@@ -22,9 +22,6 @@
 				"type": "string",
 				"defaultValue": "master"
 			}
-		},
-		"folder": {
-			"name": "surface"
 		},
 		"annotations": [],
 		"type": "AzureSqlTable",
